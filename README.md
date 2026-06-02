@@ -173,9 +173,9 @@ Drop a module in `src/ecosystems/` exporting `id`, `displayName`, `lockfiles`, `
 ## Development
 
 ```bash
-npm install                      # dev/build deps (AI SDK, zod, esbuild)
-node --test "test/**/*.test.mjs" # unit tests
-npm run build                    # bundle src/ + deps -> dist/index.mjs
+npm install   # dev/build deps (AI SDK, zod, esbuild)
+npm test      # unit tests (node --test)
+npm run build # bundle src/ + deps -> dist/index.mjs
 ```
 
 The parser, soak selection, artifact diff, tar unpacker, and provider resolution are unit-tested; the artifact fetch/unpack/diff path is verified against live hex.pm, npm, and PyPI.
