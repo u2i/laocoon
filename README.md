@@ -64,6 +64,40 @@ jobs:
           gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
 ```
 
+## Secrets & setup
+
+The only secret you must provide is an **LLM provider API key** — and only for the provider(s) your `triage-model`/`deep-model` specs use (default config needs just `GEMINI_API_KEY`). `GITHUB_TOKEN` is **provided automatically** by Actions; you do not create it.
+
+| Secret | Needed when | Get it from |
+|---|---|---|
+| `GEMINI_API_KEY` | `google:` models (default) | <https://aistudio.google.com/apikey> |
+| `ANTHROPIC_API_KEY` | `anthropic:` models | <https://console.anthropic.com/> |
+| `OPENAI_API_KEY` | `openai:` models | <https://platform.openai.com/api-keys> |
+| key for `llm-api-key` | `compatible:` models | your gateway (OpenRouter, Together, …) |
+
+**Set it on one repo:**
+
+```bash
+gh secret set GEMINI_API_KEY --repo u2i/your-repo
+# paste the key when prompted (avoid --body, which lands in shell history)
+```
+
+**Or once at the org level, scoped to selected repos** (recommended when several repos run Laocoön):
+
+```bash
+gh secret set GEMINI_API_KEY --org u2i --visibility selected --repos "repo-a,repo-b"
+```
+
+UI equivalent: **Settings → Secrets and variables → Actions → New repository (or organization) secret**. The workflow then references it as `${{ secrets.GEMINI_API_KEY }}` (see the example above).
+
+A missing key fails loudly: when the model resolves, the run errors with e.g. `Provider "google" requires the GEMINI_API_KEY environment variable`.
+
+### ⚠️ Pull requests from forks
+
+On the standard `pull_request` trigger, **GitHub withholds secrets from fork PRs**, so the API key is empty and the run fails closed (the key never leaks to untrusted code). This means external-contributor PRs are not scanned — which is the safe default.
+
+**Do not** switch to `pull_request_target` to work around this: it runs with secrets *and* write access in the base-repo context while checking out untrusted PR code, a well-known secret/token-exfiltration vector. For a key-spending security tool, failing closed on forks is correct. If you only get same-org PRs (no forks), this never comes up.
+
 ## Models & providers
 
 Models are selected with a `provider:model` string, so triage and deep can use different tiers — or even different providers. Built on the Vercel AI SDK; supply only the API key(s) your specs use.
