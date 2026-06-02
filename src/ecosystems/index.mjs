@@ -13,11 +13,10 @@
 // entirely ecosystem-agnostic.
 
 import * as hex from "./hex.mjs";
-// Future:
-// import * as npm from "./npm.mjs";
-// import * as pypi from "./pypi.mjs";
+import * as npm from "./npm.mjs";
+import * as pypi from "./pypi.mjs";
 
-export const ECOSYSTEMS = [hex /*, npm, pypi */];
+export const ECOSYSTEMS = [hex, npm, pypi];
 
 /** Map a lockfile basename to its ecosystem module, or null. */
 export function ecosystemForLockfile(filename) {

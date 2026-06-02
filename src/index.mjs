@@ -115,7 +115,10 @@ async function main() {
       afterText = head ? gitShow(head, t.path) : "";
     }
     if (!afterText) continue;
-    const diff = diffEntries(eco.parse(beforeText), eco.parse(afterText));
+    const diff = diffEntries(
+      eco.parse(beforeText, t.path),
+      eco.parse(afterText, t.path)
+    );
     if (diffIsEmpty(diff)) continue;
     ecoDiffs.push({ eco, lockfile: t.path, diff });
   }

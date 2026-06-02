@@ -4,7 +4,15 @@
 
 A GitHub Action that inspects **dependency lockfile changes** in a pull request and uses an LLM to flag likely **supply chain attacks** — specifically freshly-injected trojans hiding inside an otherwise-trusted package upgrade.
 
-It is **ecosystem-pluggable**. Today it ships with **Elixir / Hex** (`mix.lock`); npm and PyPI slot in via the same interface.
+It is **ecosystem-pluggable** and ships with three:
+
+| Ecosystem | Lockfiles | Registry | Diffs |
+|---|---|---|---|
+| **Elixir / Hex** | `mix.lock` | hex.pm | published `.tar` (inner `contents.tar.gz`) |
+| **JavaScript / npm** | `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml` | registry.npmjs.org | published `.tgz` (strips `package/`) |
+| **Python / PyPI** | `poetry.lock`, `uv.lock`, `Pipfile.lock`, pinned `requirements.txt` | pypi.org | published sdist `.tar.gz` |
+
+Each ecosystem surfaces its own prime attack surface to the model — Hex/release hooks, npm **lifecycle scripts** (`postinstall`, …), Python **`setup.py` / build hooks**.
 
 ## The core idea: soaked-baseline diffing
 
@@ -85,7 +93,13 @@ Cost ≈ diff bytes × per-token price. The triage model runs on every analyzed 
 
 ## Adding an ecosystem
 
-Drop a module in `src/ecosystems/` exporting `id`, `displayName`, `lockfiles`, `parse`, `isRegistryBacked`, `packageKey`, `fetchContext`, `getReleases`, `fetchArtifact`, and register it in `src/ecosystems/index.mjs`. The core (diff, soak selection, artifact diff, LLM cascade, GitHub, reporting) is entirely ecosystem-agnostic. **npm** and **PyPI** are next.
+Drop a module in `src/ecosystems/` exporting `id`, `displayName`, `lockfiles`, `parse(contents, filename)`, `isRegistryBacked`, `packageKey`, `fetchContext`, `getReleases`, `fetchArtifact`, and register it in `src/ecosystems/index.mjs`. Use the shared `baseContext`/`computeCadence` from `registry-context.mjs` so the LLM payload looks identical across registries. The core (diff, soak selection, artifact diff, LLM cascade, GitHub, reporting) is entirely ecosystem-agnostic.
+
+### Known per-ecosystem limitations
+
+- **PyPI**: the JSON API exposes no maintainer accounts or download counts, so those signals are absent (author name is a weak proxy). Wheel-only releases (no sdist) can't be source-diffed and are flagged.
+- **npm**: `yarn.lock`/`pnpm-lock.yaml` parsing is tolerant but not a full grammar; exotic entries may be skipped (logged, not silently dropped).
+- **requirements.txt**: only fully-pinned (`==`) lines are analyzable; ranges/unpinned lines have no exact version to soak-diff.
 
 ## Limitations
 

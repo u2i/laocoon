@@ -5,6 +5,7 @@
 //     resolvedUrl, gitUrl, gitRef, packageId, raw }
 
 import { unpackTarball, untar } from "../untar.mjs";
+import { baseContext, computeCadence } from "./registry-context.mjs";
 
 export const id = "hex";
 export const displayName = "Elixir (Hex)";
@@ -157,7 +158,7 @@ const HEX_API = "https://hex.pm/api";
  * @returns {Promise<RegistryContext>}
  */
 export async function fetchContext({ pkg, fromVersion, toVersion }) {
-  const ctx = baseContext(pkg, fromVersion, toVersion);
+  const ctx = baseContext({ registry: "hex.pm", pkg, fromVersion, toVersion });
   try {
     const pkgRes = await hexGet(`/packages/${encodeURIComponent(pkg)}`);
     if (!pkgRes) {
@@ -210,36 +211,6 @@ async function hexGet(path) {
   return res.json();
 }
 
-// --- shared registry-context helpers (used by every ecosystem module) ---
-
-export function baseContext(pkg, fromVersion, toVersion) {
-  return {
-    registry: "hex.pm",
-    package: pkg,
-    fromVersion,
-    toVersion,
-    available: false,
-    repository: null,
-    htmlUrl: null,
-    totalDownloads: null,
-    releaseInsertedAt: null,
-    fromReleaseInsertedAt: null,
-    daysBetweenReleases: null,
-    publishedByDifferentOwner: null,
-    owners: null,
-    retired: null,
-    notes: [],
-  };
-}
-
-export function computeCadence(ctx) {
-  if (ctx.releaseInsertedAt && ctx.fromReleaseInsertedAt) {
-    const d =
-      (new Date(ctx.releaseInsertedAt) - new Date(ctx.fromReleaseInsertedAt)) / 86400000;
-    ctx.daysBetweenReleases = Math.round(d * 10) / 10;
-  }
-}
-
 /**
  * List all releases with publish dates, for soaked-baseline selection.
  * @returns {Promise<Array<{version:string, insertedAt:string|null}>>}
@@ -270,22 +241,3 @@ export async function fetchArtifact(pkg, version) {
   if (!contents) throw new Error(`no contents.tar.gz in ${pkg}-${version} tarball`);
   return unpackTarball(contents);
 }
-
-/**
- * @typedef {Object} RegistryContext
- * @property {string} registry
- * @property {string} package
- * @property {string|null} fromVersion
- * @property {string} toVersion
- * @property {boolean} available
- * @property {string|null} repository
- * @property {string|null} htmlUrl
- * @property {number|null} totalDownloads
- * @property {string|null} releaseInsertedAt
- * @property {string|null} fromReleaseInsertedAt
- * @property {number|null} daysBetweenReleases
- * @property {string|null} publishedByDifferentOwner
- * @property {string[]|null} owners
- * @property {string|null} retired
- * @property {string[]} notes
- */
