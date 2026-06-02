@@ -5,10 +5,27 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "node --test \"test/**/*.test.mjs\""
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "build": "node build.mjs",
+    "prepublishOnly": "node build.mjs"
   },
   "engines": {
     "node": ">=20"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [],
+  "author": "",
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.81",
+    "@ai-sdk/google": "^3.0.80",
+    "@ai-sdk/openai": "^3.0.67",
+    "@ai-sdk/openai-compatible": "^2.0.48",
+    "ai": "^6.0.195",
+    "esbuild": "^0.28.0",
+    "zod": "^4.4.3"
+  }
 }

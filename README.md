@@ -32,7 +32,7 @@ A version that's been public for 60+ days has had time for the ecosystem to catc
 2. For each changed/added dependency: **select the soaked baseline**, **download and unpack the published artifacts** (the actual tarballs — not the git repo, which can differ), and **diff the file trees**.
 3. Gather **registry signals**: release age, downloads, owners, publisher (account-takeover check), repository link, retirement/yank.
 4. **Binaries & minified blobs are never sent to the LLM** — they can't be statically reviewed. A binary that's *new or changed* vs the soaked baseline is flagged as elevated risk rather than silently passed as clean.
-5. **Two-stage Gemini cascade:** a cheap model (`gemini-3.1-flash-lite`) triages every PR; a stronger model (`gemini-3.5-flash`) re-reviews only when triage flags risk, install/build hooks changed, a binary changed, or no soaked baseline exists.
+5. **Two-stage LLM cascade:** a cheap model triages every PR; a stronger model re-reviews only when triage flags risk, install/build hooks changed, a binary changed, or no soaked baseline exists. Built on the [Vercel AI SDK](https://ai-sdk.dev) with schema-validated structured output, so the **provider is swappable** — see [Models & providers](#models--providers).
 6. **Post / update one PR comment** + job summary; **fail the check** when risk ≥ `fail-on`.
 
 ### Idempotency
@@ -62,6 +62,35 @@ jobs:
       - uses: u2i/laocoon@v1
         with:
           gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+```
+
+## Models & providers
+
+Models are selected with a `provider:model` string, so triage and deep can use different tiers — or even different providers. Built on the Vercel AI SDK; supply only the API key(s) your specs use.
+
+| Provider prefix | Backend | Key input / env |
+|---|---|---|
+| `google:` (default) | Google Gemini | `gemini-api-key` / `GEMINI_API_KEY` |
+| `anthropic:` | Anthropic Claude | `anthropic-api-key` / `ANTHROPIC_API_KEY` |
+| `openai:` | OpenAI | `openai-api-key` / `OPENAI_API_KEY` |
+| `compatible:` | Any OpenAI-compatible endpoint (OpenRouter, Together, Groq, Vercel AI Gateway, Ollama, …) | `llm-api-key` + `llm-base-url` |
+
+A bare model id with no prefix defaults to `google:`. An unrecognized prefix errors (a typo'd provider fails loudly rather than silently becoming a Gemini model).
+
+```yaml
+# Mix providers: cheap Gemini triage, Claude for the deep look.
+with:
+  gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+  anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+  triage-model: google:gemini-3.1-flash-lite
+  deep-model: anthropic:claude-sonnet-4-6
+
+# Or route everything through one OpenAI-compatible gateway:
+with:
+  llm-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+  llm-base-url: https://openrouter.ai/api/v1
+  triage-model: compatible:google/gemini-2.5-flash-lite
+  deep-model: compatible:anthropic/claude-sonnet-4
 ```
 
 ## Inputs
@@ -110,7 +139,13 @@ Drop a module in `src/ecosystems/` exporting `id`, `displayName`, `lockfiles`, `
 ## Development
 
 ```bash
-node --test "test/**/*.test.mjs"
+npm install                      # dev/build deps (AI SDK, zod, esbuild)
+node --test "test/**/*.test.mjs" # unit tests
+npm run build                    # bundle src/ + deps -> dist/index.mjs
 ```
 
-The parser, soak selection, artifact diff, and tar unpacker are unit-tested; the Hex artifact fetch/unpack/diff path is verified against live hex.pm.
+The parser, soak selection, artifact diff, tar unpacker, and provider resolution are unit-tested; the artifact fetch/unpack/diff path is verified against live hex.pm, npm, and PyPI.
+
+### Why a bundle?
+
+A composite GitHub Action has no `npm install` step at runtime, so the AI SDK dependency tree is pre-bundled into a single committed `dist/index.mjs` (via esbuild). **Edit `src/`, then run `npm run build` and commit `dist/` before tagging a release.** `node_modules/` is git-ignored; `dist/` is committed.

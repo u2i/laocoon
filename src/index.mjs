@@ -52,9 +52,9 @@ function nowDate() {
 }
 
 async function main() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const triageModel = process.env.INPUT_TRIAGE_MODEL || "gemini-3.1-flash-lite";
-  const deepModel = process.env.INPUT_DEEP_MODEL || "gemini-3.5-flash";
+  // "provider:model" specs. Bare model defaults to google: (back-compat).
+  const triageSpec = process.env.INPUT_TRIAGE_MODEL || "google:gemini-3.1-flash-lite";
+  const deepSpec = process.env.INPUT_DEEP_MODEL || "google:gemini-3.5-flash";
   const failOnRaw = (process.env.INPUT_FAIL_ON || "high").toLowerCase();
   const failOn = normalizeRisk(failOnRaw);
   const failNever = failOnRaw === "none";
@@ -65,10 +65,8 @@ async function main() {
   const ecoFilter = process.env.INPUT_ECOSYSTEMS || "";
   const lockfileOverride = process.env.INPUT_LOCKFILE || "";
 
-  if (!apiKey) {
-    log("ERROR: gemini-api-key input is required.");
-    process.exit(1);
-  }
+  // Provider keys are validated lazily by provider.mjs when a model resolves,
+  // so a user supplying only ANTHROPIC_API_KEY + anthropic: specs works fine.
 
   const event = readEvent();
   const { base, head, prNumber } = resolveRefs(event, overrideBase);
@@ -153,13 +151,12 @@ async function main() {
       diffBudgetBytes,
       log,
     });
-    log(`  cascade: triage=${triageModel}${escalate.length ? ` (force-deep: ${escalate.join("; ")})` : ""}`);
+    log(`  cascade: triage=${triageSpec}${escalate.length ? ` (force-deep: ${escalate.join("; ")})` : ""}`);
     let analysis, stages;
     try {
       ({ analysis, stages } = await analyzeCascade({
-        apiKey,
-        triageModel,
-        deepModel,
+        triageSpec,
+        deepSpec,
         payload,
         forceDeepReasons: escalate,
       }));

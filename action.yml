@@ -1,26 +1,48 @@
 name: "Laocoön — Supply Chain Guard"
-description: "Diffs changed dependency lockfiles (Hex/npm/PyPI) against a soaked baseline and uses Gemini to flag freshly-injected supply chain trojans."
+description: "Diffs changed dependency lockfiles (Hex/npm/PyPI) against a soaked baseline and uses an LLM to flag freshly-injected supply chain trojans."
 author: "u2i"
 branding:
   icon: "shield"
   color: "red"
 
 inputs:
+  # --- LLM provider keys (supply the one(s) your model specs use) ---
   gemini-api-key:
-    description: "Google Gemini API key (Generative Language API)."
-    required: true
+    description: "Google Gemini API key (for google: models). Maps to GEMINI_API_KEY."
+    required: false
+    default: ""
+  anthropic-api-key:
+    description: "Anthropic API key (for anthropic: models). Maps to ANTHROPIC_API_KEY."
+    required: false
+    default: ""
+  openai-api-key:
+    description: "OpenAI API key (for openai: models). Maps to OPENAI_API_KEY."
+    required: false
+    default: ""
+  llm-api-key:
+    description: "API key for an OpenAI-compatible endpoint (compatible: models). Maps to LLM_API_KEY."
+    required: false
+    default: ""
+  llm-base-url:
+    description: "Base URL for an OpenAI-compatible endpoint (OpenRouter/Together/Groq/Gateway/Ollama). Required for compatible: models."
+    required: false
+    default: ""
+
   github-token:
     description: "GitHub token used to read the PR diff and post a comment."
     required: false
     default: ${{ github.token }}
+
+  # --- model selection: "provider:model" (provider one of google|anthropic|openai|compatible) ---
   triage-model:
-    description: "Cheap Gemini model that scores every PR."
+    description: "Cheap model run on every PR, as 'provider:model'. Bare model defaults to google:."
     required: false
-    default: "gemini-3.1-flash-lite"
+    default: "google:gemini-3.1-flash-lite"
   deep-model:
-    description: "Stronger Gemini model used only when triage escalates."
+    description: "Stronger model used only on escalation, as 'provider:model'."
     required: false
-    default: "gemini-3.5-flash"
+    default: "google:gemini-3.5-flash"
+
   soak-days:
     description: "A release older than this many days is treated as a presumed-clean 'soaked' baseline to diff against."
     required: false
@@ -65,6 +87,10 @@ runs:
       shell: bash
       env:
         GEMINI_API_KEY: ${{ inputs.gemini-api-key }}
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic-api-key }}
+        OPENAI_API_KEY: ${{ inputs.openai-api-key }}
+        LLM_API_KEY: ${{ inputs.llm-api-key }}
+        LLM_BASE_URL: ${{ inputs.llm-base-url }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
         INPUT_TRIAGE_MODEL: ${{ inputs.triage-model }}
         INPUT_DEEP_MODEL: ${{ inputs.deep-model }}
@@ -75,4 +101,5 @@ runs:
         INPUT_FAIL_ON: ${{ inputs.fail-on }}
         INPUT_COMMENT: ${{ inputs.comment }}
         INPUT_MAX_DIFF_BYTES: ${{ inputs.max-diff-bytes }}
-      run: node "${{ github.action_path }}/src/index.mjs"
+      # Runs the prebuilt bundle (dist/index.mjs) — no npm install needed.
+      run: node "${{ github.action_path }}/dist/index.mjs"
