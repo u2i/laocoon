@@ -1,0 +1,78 @@
+name: "Laocoön — Supply Chain Guard"
+description: "Diffs changed dependency lockfiles (Hex/npm/PyPI) against a soaked baseline and uses Gemini to flag freshly-injected supply chain trojans."
+author: "u2i"
+branding:
+  icon: "shield"
+  color: "red"
+
+inputs:
+  gemini-api-key:
+    description: "Google Gemini API key (Generative Language API)."
+    required: true
+  github-token:
+    description: "GitHub token used to read the PR diff and post a comment."
+    required: false
+    default: ${{ github.token }}
+  triage-model:
+    description: "Cheap Gemini model that scores every PR."
+    required: false
+    default: "gemini-3.1-flash-lite"
+  deep-model:
+    description: "Stronger Gemini model used only when triage escalates."
+    required: false
+    default: "gemini-3.5-flash"
+  soak-days:
+    description: "A release older than this many days is treated as a presumed-clean 'soaked' baseline to diff against."
+    required: false
+    default: "60"
+  ecosystems:
+    description: "Comma-separated ecosystem ids to analyze (e.g. 'hex,npm,pypi'). Empty = auto-detect all."
+    required: false
+    default: ""
+  lockfile:
+    description: "Restrict analysis to a single lockfile path (overrides auto-detection)."
+    required: false
+    default: ""
+  base-ref:
+    description: "Git ref to diff against (the 'before' state). Defaults to the PR base."
+    required: false
+    default: ""
+  fail-on:
+    description: "Minimum risk that fails the check: critical | high | medium | low | none."
+    required: false
+    default: "high"
+  comment:
+    description: "Whether to post / update a PR comment with the findings."
+    required: false
+    default: "true"
+  max-diff-bytes:
+    description: "Overall byte cap on the artifact diff sent to the LLM per ecosystem."
+    required: false
+    default: "60000"
+
+outputs:
+  risk-level:
+    description: "Highest risk level found (none|low|medium|high|critical, or 'skipped')."
+    value: ${{ steps.analyze.outputs.risk-level }}
+  findings-json:
+    description: "Structured findings as a JSON string."
+    value: ${{ steps.analyze.outputs.findings-json }}
+
+runs:
+  using: "composite"
+  steps:
+    - id: analyze
+      shell: bash
+      env:
+        GEMINI_API_KEY: ${{ inputs.gemini-api-key }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_TRIAGE_MODEL: ${{ inputs.triage-model }}
+        INPUT_DEEP_MODEL: ${{ inputs.deep-model }}
+        INPUT_SOAK_DAYS: ${{ inputs.soak-days }}
+        INPUT_ECOSYSTEMS: ${{ inputs.ecosystems }}
+        INPUT_LOCKFILE: ${{ inputs.lockfile }}
+        INPUT_BASE_REF: ${{ inputs.base-ref }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        INPUT_MAX_DIFF_BYTES: ${{ inputs.max-diff-bytes }}
+      run: node "${{ github.action_path }}/src/index.mjs"

@@ -1,0 +1,14 @@
+{
+  "name": "laocoon",
+  "version": "1.0.0",
+  "description": "GitHub Action that diffs changed dependency lockfiles against a soaked baseline and uses Gemini to flag freshly-injected supply chain trojans.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\""
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

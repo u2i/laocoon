@@ -1,0 +1,42 @@
+# Example workflow for consumers of Laocoön. Copy into your repo's
+# .github/workflows/. Runs only when a known lockfile changes, cancels
+# superseded runs per PR, and posts a single PR comment.
+name: Laocoön Supply Chain Guard
+
+on:
+  pull_request:
+    paths:
+      - "**/mix.lock"
+      - "**/package-lock.json"
+      - "**/yarn.lock"
+      - "**/pnpm-lock.yaml"
+      - "**/poetry.lock"
+      - "**/uv.lock"
+      - "**/requirements.txt"
+
+permissions:
+  contents: read
+  pull-requests: write # required to post the PR comment
+
+concurrency:
+  group: laocoon-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need base + head to diff the cumulative PR change
+
+      - name: Laocoön
+        uses: u2i/laocoon@v1
+        with:
+          gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+          # Optional overrides:
+          # triage-model: gemini-3.1-flash-lite
+          # deep-model: gemini-3.5-flash
+          # soak-days: "60"
+          # ecosystems: "hex,npm,pypi"   # default: auto-detect
+          # fail-on: high                # critical|high|medium|low|none
